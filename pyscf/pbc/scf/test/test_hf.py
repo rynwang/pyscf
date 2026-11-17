@@ -168,6 +168,21 @@ class KnownValues(unittest.TestCase):
         self.assertAlmostEqual(e1, -4.291854736401251, 7)
         self.assertTrue(mf1.mo_coeff.dtype == numpy.double)
 
+    def test_from_chk_fractional_occupation(self):
+        # A restricted checkpoint with fractional occupations (e.g. from
+        # smearing) must reproduce the same electron count in from_chk().
+        cell1 = pbcgto.M(atom='Li 0 0 0; Li 1.75 1.75 1.75',
+                         a=numpy.eye(3)*3.5, basis='gth-szv',
+                         pseudo='gth-pade', verbose=0)
+        mf = pscf.addons.smearing_(pscf.RHF(cell1), sigma=0.05)
+        mf.chkfile = lib.NamedTemporaryFile().name
+        mf.kernel()
+        s = mf.get_ovlp()
+        dm_ref = mf.make_rdm1()
+        dm_chk = pscf.RHF(cell1).from_chk(mf.chkfile)
+        self.assertAlmostEqual(numpy.einsum('ij,ji', dm_ref, s).real, 6.0, 6)
+        self.assertAlmostEqual(numpy.einsum('ij,ji', dm_chk, s).real, 6.0, 6)
+
     def test_uhf_exx_ewald(self):
         mf = pscf.UHF(cell, exxdiv='ewald')
         mf.init_guess = 'hcore'

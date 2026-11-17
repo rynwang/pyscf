@@ -75,8 +75,13 @@ def init_guess_by_chkfile(cell, chkfile_name, project=None, kpt=None):
 
     if getattr(mo, 'ndim', None) == 2:
         mo = fproj(mo)
-        mo_occa = (mo_occ>1e-8).astype(np.double)
-        mo_occb = mo_occ - mo_occa
+        # A restricted checkpoint may store fractional occupations (e.g. from
+        # smearing).  Split them without introducing negative occupations:
+        # ``uhf.make_rdm1`` discards the ones that are not positive, which
+        # would otherwise turn a partially occupied orbital into a fully
+        # occupied alpha orbital.
+        mo_occa = np.minimum(mo_occ, 1.0)
+        mo_occb = np.maximum(mo_occ - 1.0, 0.0)
         dm = mol_uhf.make_rdm1([mo,mo], [mo_occa,mo_occb])
     else:  # UHF
         dm = mol_uhf.make_rdm1([fproj(mo[0]),fproj(mo[1])], mo_occ)
